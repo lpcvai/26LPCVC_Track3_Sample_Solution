@@ -1,0 +1,90 @@
+{
+
+  "overall_likelihood": "AI-Generated",
+
+  "per_criterion": [
+
+    {
+
+      "criterion": "Lighting & Shadows Consistency",
+
+      "score": 1,
+
+      "evidence": "The overall lighting is consistent, but the contact shadow where the watch body meets the wooden table is overly soft and lacks a defined edge, suggesting an imperfect simulation of physical contact."
+
+    },
+
+    {
+
+      "criterion": "Edges & Boundaries",
+
+      "score": 0,
+
+      "evidence": "The edges and boundaries of the watch and surrounding objects appear clean and consistent with photographic depth of field, with no obvious haloing or slicing artifacts."
+
+    },
+
+    {
+
+      "criterion": "Texture & Resolution",
+
+      "score": 1,
+
+      "evidence": "The wood grain texture on the table is overly smooth and uniform, lacking the natural micro-variations and imperfections of real wood. The entire image possesses a characteristic synthetic smoothness often seen in AI generations."
+
+
+    },
+
+    {
+
+      "criterion": "Perspective & Spatial Relationships",
+
+      "score": 1,
+
+      "evidence": "The watch appears to be slightly floating rather than resting firmly on the table surface, an effect exaggerated by the weak contact shadow."
+
+    },
+
+    {
+
+      "criterion": "Physical & Common Sense Logic",
+
+      "score": 1,
+
+      "evidence": "The reflection on the watch face is a generic, hazy light source that does not correspond to a specific environment, which is common in generated images lacking a coherent world model."
+
+    },
+
+    {
+
+      "criterion": "Text & Symbols",
+
+      "score": 1,
+
+      "evidence": "The characters displayed on the watch screen are completely incoherent. The main 'time' display is a nonsensical jumble of glyphs, and the smaller icons are equally meaningless, a definitive red flag for AI generation."
+
+    },
+
+    {
+
+      "criterion": "Human & Biological Structure Integrity",
+
+      "score": 0,
+
+      "evidence": "Not assessable as no human or biological subjects are present in the image."
+
+    },
+
+    {
+
+      "criterion": "Material & Object Details",
+
+      "score": 1,
+
+      "evidence": "The watch strap appears to merge or fuse directly into the watch lug on the lower left side without a proper pin or attachment mechanism. The pen next to the notepad is overly simplified and lacks realistic details like a brand or seam."
+
+    }
+
+  ]
+
+}
