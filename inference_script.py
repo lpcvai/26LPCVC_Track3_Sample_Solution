@@ -1,4 +1,5 @@
-# This notebook is adapted for WSL, adb commands are different than in Linux environments
+# This script runs on Linux with native adb commands
+import argparse
 import glob
 import json
 import os
@@ -15,8 +16,18 @@ from PIL import Image
 from transformers import AutoConfig, AutoProcessor
 
 from qwen_vl_utils import process_vision_info
-from common_files.nsptargets import NspTargets
 # os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
+script_start_time = time.time()
+print("Script execution started...")
+
+# Take the following command line arguments:
+# host_output_dir: directory on host to save final outputs defaults to "Host_Outputs/"
+# uploads_dir: directory containing contestant's uploaded files (defaults to "contestant_uploads/")
+parser = argparse.ArgumentParser(description="Inference Script for Qwen2-VL 2B IoT Challenge")
+parser.add_argument("--host_output_dir", type=str, default="Host_Outputs/", help="Directory on host to save final outputs")
+parser.add_argument("--uploads_dir", type=str, default="contestant_uploads/", help="Directory containing contestant's uploaded files")
+args = parser.parse_args()
 
 # Check and initialize paths to files in contestant_uploads/
 # contestant_uploads/
@@ -32,7 +43,7 @@ from common_files.nsptargets import NspTargets
 # └── tokenizer.json
 
 execution_ws = os.getcwd()
-context_path = execution_ws + "/contestant_uploads"
+context_path = execution_ws + "/" + args.uploads_dir
 missing = []
 
 # ---- Find ar*-ar*-cl* folders ----
@@ -114,13 +125,9 @@ run_veg_embedding_dim_input  = inputs["run_veg_embedding_dim"]
 # ---- Genie config ----
 genie_config = inputs["genie_config"]
 
-ADB = "/mnt/c/platform-tools/adb.exe"
+ADB = "adb"
 cmd = f'{ADB} devices -l'  # command as a single string
 result = subprocess.run(cmd, capture_output=True, text=True, shell=True)
-
-# Example result:
-    # List of devices attached
-    # d2d2c4d6               device product:canoe model:Canoe_for_arm64 device:canoe transport_id:1
 
 lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
 device_lines = lines[1:]  # Everything after the header
@@ -131,14 +138,22 @@ if not device_lines:
 device_id = device_lines[0].split()[0]
 print(f"Successfully connected to: {device_id}")
 
-# Set up NSP Target
 sys.path.append('../../')
+# Set up NSP Target for GEN5
+class AndroidTarget:
+    def __init__(self, soc_id, dsp_arch, qnn_htp_lib):
+        self.soc_id = soc_id
+        self.dsp_arch = dsp_arch
+        self.qnn_htp_lib_name = qnn_htp_lib
 
-# Change GEN4 here to GEN5
-nsp_target = NspTargets.Android.GEN5 # For GEN5
+ANDROID_GEN5 = AndroidTarget(
+    soc_id=None,
+    dsp_arch="v81",
+    qnn_htp_lib="QnnHtpV81"
+)
+nsp_target = ANDROID_GEN5
 
 # Configure QNN SDK and Genie paths
-# Link /qnn_assets to /qnn
 if os.path.isdir("qnn_assets"):
     os.unlink("qnn_assets")
 os.symlink("/qnn", "qnn_assets")
@@ -152,7 +167,6 @@ GENIE_binary = os.path.join(QNN_SDK_dir, "bin/aarch64-android/genie-t2t-run")
 QNN_skel = os.path.join(QNN_SDK_dir, "lib/hexagon-" + nsp_target.dsp_arch,  "unsigned", "lib" + nsp_target.qnn_htp_lib_name + "Skel.so")
 
 des_dir = os.path.join(execution_ws, "to_device")
-# Sub directories of des_dir for Qualla directory structure:
 des_dir_models = os.path.join(des_dir, "models")
 des_dir_qwen2_models = os.path.join(des_dir_models, "qwen2-vl")
 des_dir_qwen2_models_2B = os.path.join(des_dir_qwen2_models, "2B-FT")
@@ -160,15 +174,12 @@ des_dir_qwen2_model_2B_data = os.path.join(des_dir_qwen2_models_2B, "data")
 
 if os.path.exists(des_dir):
     shutil.rmtree(des_dir) # clear destination dir 
-os.makedirs(des_dir_qwen2_model_2B_data) # will recursively create all required directories
+os.makedirs(des_dir_qwen2_model_2B_data)
 
-# on device destination directories
 target_device_dir = "/data/local/tmp/qwen2_vl_assets"
 
-# This is the path of the prepared model binaries for Qwen2-VL (example2)
-qwen2_models_context_path = os.path.join(context_path, ar_foldername) # MIGHT NEED TO CHANGE THIS LATER ON
+qwen2_models_context_path = os.path.join(context_path, ar_foldername)
 
-# This is the list of split LLM model files (in order):
 llm_model_names = os.listdir(qwen2_models_context_path)
 llm_model_names.sort()
 llm_model_names = [f for f in llm_model_names if os.path.isfile(os.path.join(qwen2_models_context_path, f))]
@@ -177,11 +188,9 @@ veg_models_context_path = os.path.join(context_path + "/serialized_binaries")
 
 for model_bin in os.listdir(veg_models_context_path):
     src_file = os.path.join(veg_models_context_path, model_bin)
-    # Only copy files, skip directories
     if os.path.isfile(src_file):
         shutil.copy(src_file, des_dir)
 
-# Copy model binaries 
 for model_bin in os.listdir(qwen2_models_context_path):
     src_file = os.path.join(qwen2_models_context_path, model_bin)
     if os.path.isfile(src_file):
@@ -190,7 +199,6 @@ for model_bin in os.listdir(qwen2_models_context_path):
 qwen2_vl_embedding_buffer_file = os.path.join(context_path, embed_weights_filename)
 shutil.copy(qwen2_vl_embedding_buffer_file, des_dir_qwen2_models_2B)
 
-# Copy necessary libraries to a common location
 QNN_libs = ["libQnnHtp.so", "libQnnHtpNetRunExtensions.so", "libQnnHtpPrepare.so", "lib" + nsp_target.qnn_htp_lib_name + "Stub.so", "libQnnSystem.so"]
 for lib in QNN_libs:
     shutil.copy(os.path.join(QNN_lib_dir, lib), des_dir)
@@ -199,21 +207,16 @@ GENIE_libs = ["libGenie.so"]
 for lib in GENIE_libs:
     shutil.copy(os.path.join(GENIE_lib_dir, lib), des_dir)
 
-# Copy binaries
 shutil.copy(QNN_binary, des_dir)
 shutil.copy(GENIE_binary, des_dir)
-
-# Copy Skel
 shutil.copy(QNN_skel, des_dir)
 
 qwen2_vl_tokenizer_path = context_path + "/tokenizer.json"
 shutil.copy(qwen2_vl_tokenizer_path, des_dir_qwen2_models)
 
-# htp_backend_extensions.json goes inside the LLM model data folder:
 qwen2_data_folder_rel_path = os.path.relpath(des_dir_qwen2_model_2B_data, des_dir)
 target_device_data_dir = os.path.join(target_device_dir, qwen2_data_folder_rel_path)
 
-# HTP backend extensions config file (htp_backend_extensions.json) example
 htp_backend_extensions_data = {
     "backend_extensions": {
         "shared_library_path": "libQnnHtpNetRunExtensions.so",
@@ -221,7 +224,6 @@ htp_backend_extensions_data = {
     }
 }
 
-# HTP backend config file (htp_backend_ext_config.json) example
 htp_backend_ext_config_data = {
     "devices": [
         {
@@ -233,28 +235,16 @@ htp_backend_ext_config_data = {
     ]
 }
 
-# write the config files to the destination
 with open(os.path.join(des_dir, 'htp_backend_extensions.json'),'w') as f:
     f.write(json.dumps(htp_backend_extensions_data, indent=4))
-# Genie and QNN will use the same htp_backend_ext_config_data, so it will be dumped to the location expected by Genie
 with open(os.path.join(des_dir_qwen2_model_2B_data,  'htp_backend_ext_config.json'),'w') as f:
     f.write(json.dumps(htp_backend_ext_config_data, indent=4))
 
 dialog = genie_config["dialog"]
-
-# tokenizer
-dialog["tokenizer"]["path"] = str(
-    "models/qwen2-vl/tokenizer.json"
-)
-
-# backend extensions
-dialog["engine"]["backend"]["extensions"] = str(
-    "models/qwen2-vl/2B-FT/data/htp_backend_ext_config.json"
-)
+dialog["tokenizer"]["path"] = str("models/qwen2-vl/tokenizer.json")
+dialog["engine"]["backend"]["extensions"] = str("models/qwen2-vl/2B-FT/data/htp_backend_ext_config.json")
 
 BASE_MODEL_DIR = Path("models/qwen2-vl/2B-FT")
-
-# ctx-bins (supports multiple files)
 dialog["engine"]["model"]["binary"]["ctx-bins"] = [
     str(BASE_MODEL_DIR / name) for name in llm_model_names
 ]
@@ -262,27 +252,17 @@ dialog["engine"]["model"]["binary"]["ctx-bins"] = [
 with open(os.path.join(des_dir, 'qwen2-vl-e2t-htp.json'), 'w') as f:
     f.write(json.dumps(genie_config, indent=4))
 
-# OPTIONAL: remove target directory from the device if retrying these steps
-# Changed for WSL:
-RH = "localhost"
-cmd_rm = [
-    ADB,
-    "-H", RH,
-    "-s", device_id,
-    "shell", "rm", "-rf", target_device_dir
-]
+cmd_rm = [ADB, "-s", device_id, "shell", "rm", "-rf", target_device_dir]
 result_rm = subprocess.run(cmd_rm, capture_output=True, text=True)
 print(result_rm.stdout, result_rm.stderr)
 
-zip_path = os.path.join(des_dir, "package.zip")
+# Batch files
+zip_path = os.path.join(os.path.dirname(des_dir), "package.zip")
 device_zip_path = f"{target_device_dir}/package.zip"
 
 if os.path.exists(zip_path):
     os.remove(zip_path)
 
-zip_path = os.path.join(os.path.dirname(des_dir), "package.zip")
-device_zip_path = f"{target_device_dir}/package.zip"
-# --- 1. create ZIP ---
 print("Zipping directory:", des_dir)
 t0 = time.time()
 with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_STORED) as zipf:
@@ -291,61 +271,38 @@ with zipfile.ZipFile(zip_path, 'w', compression=zipfile.ZIP_STORED) as zipf:
             full_path = os.path.join(root, file)
             arcname = os.path.relpath(full_path, des_dir)
             zipf.write(full_path, arcname)
-
 t1 = time.time()
 print(f"\tZipping completed in {t1 - t0:.2f}s")
 
-# --- 2. adb push ZIP ---
 print("Pushing ZIP to device...")
-cmd_push = [
-    ADB, "-H", RH, "-s", device_id,
-    "push", zip_path, device_zip_path
-]
-
+cmd_push = [ADB, "-s", device_id, "push", zip_path, device_zip_path]
 t2 = time.time()
-proc_push = subprocess.run(cmd_push, capture_output=True, text=True)
+subprocess.run(cmd_push, capture_output=True, text=True)
 t3 = time.time()
-
-# print("adb push stdout:", proc_push.stdout)
-# print("adb push stderr:", proc_push.stderr)
 print(f"adb push time: {t3 - t2:.2f}s\n")
 
-# --- 3. adb unzip ---
 print("Unzipping on device...")
-cmd_unzip = (
-    f'{ADB} -H {RH} -s {device_id} shell "cd {target_device_dir} && unzip -o package.zip"'
-)
-
+cmd_unzip = f'{ADB} -s {device_id} shell "cd {target_device_dir} && unzip -o package.zip"'
 t4 = time.time()
-proc_unzip = subprocess.run(cmd_unzip, shell=True, capture_output=True, text=True)
+subprocess.run(cmd_unzip, shell=True, capture_output=True, text=True)
 t5 = time.time()
-
 print(f"\tadb unzip time: {t5 - t4:.2f}s")
 
-# --- 4. Remove ZIP from device and host ---
 print("Removing ZIPs from device and host...")
-subprocess.run([
-    ADB, "-H", RH, "-s", device_id,
-    "shell", "rm", "-f", device_zip_path
-], capture_output=True, text=True)
+subprocess.run([ADB, "-s", device_id, "shell", "rm", "-f", device_zip_path], capture_output=True, text=True)
 os.remove(zip_path)
 
-print(f"\nTotal time: {t5 - t0:.2f}s")
-
-# Initializing the Lookup table using:
-lookup_table_np = np.fromfile(os.path.join(des_dir_qwen2_models_2B, embed_weights_filename), dtype=np.float32) # CHANGE
-# Reshape lookup table to n-vocab x embedding_vector_len
+lookup_table_np = np.fromfile(os.path.join(des_dir_qwen2_models_2B, embed_weights_filename), dtype=np.float32)
 lookup_table_np = lookup_table_np.reshape(genie_config["dialog"]["context"]["n-vocab"], genie_config["dialog"]["embedding"]["size"])
+
 def get_embeddings(token_ids):
     token_embeddings =  []
-    # Get embedding for each token:
     for token_id in token_ids:
         token_embeddings.append(lookup_table_np[token_id, :])
-    # Stack all token embeddings together:
     token_embeddings_np = np.stack(token_embeddings, axis=0)
     return token_embeddings_np
 
-qwen2_vl_processor = AutoProcessor.from_pretrained(qwen2_vl_processor_input) # CHANGE
+qwen2_vl_processor = AutoProcessor.from_pretrained(qwen2_vl_processor_input)
 
 def data_preprocess(processor, img_path, inp_h=342, inp_w=512, prompt=''):
     messages = [{
@@ -363,7 +320,6 @@ def data_preprocess(processor, img_path, inp_h=342, inp_w=512, prompt=''):
             },
         ],
     }]
-    # Preparation for inference
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     image_inputs, _ = process_vision_info(messages)
     inputs = processor(
@@ -373,20 +329,32 @@ def data_preprocess(processor, img_path, inp_h=342, inp_w=512, prompt=''):
     )
     return inputs
 
-# Define generic qnn-net-run block
+def text_preprocess(processor, prompt=''):
+    """Preprocess text for Stage 2 without image inputs"""
+    messages = [{
+        "role": "user",
+        "content": [
+            {
+                "type": "text",
+                "text": prompt
+            },
+        ],
+    }]
+    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(
+        text=text,
+        return_tensors="pt",
+    )
+    return inputs
+
 def run_qnn_net_run(model_context, input_data_list):
-    # Define tmp directory path for intermediate artifacts
     tmp_dirpath = os.path.abspath('tmp/inputs')
     os.makedirs(tmp_dirpath, exist_ok=True)
     
-    # Dump each input data from input_data_list as raw file
-    # and prepare input_list_filepath for qnn-net-run
     input_list_text = ''
     for index, input_data in enumerate(input_data_list):
-        # Create and dump each input into raw file
         raw_file_path = f'{tmp_dirpath}/input_{index}.raw'
         input_data.tofile(raw_file_path)
-        # Keep appending raw_file_path into input_list_text for input_list_filepath file
         input_list_text += target_device_dir + '/inputs/' + os.path.basename(raw_file_path) + ' '
 
     cos_data  = os.path.join(context_path, "position_ids_cos.raw")
@@ -399,254 +367,287 @@ def run_qnn_net_run(model_context, input_data_list):
     input_list_text += target_device_dir + '/inputs/position_ids_sin.raw' + ' '
     input_list_text += target_device_dir + '/inputs/mask.raw' + ' '
 
-    print(input_list_text)
-    
-    # Create input_list_filepath and add prepared input_list_text into this file
     input_list_filepath = f'{tmp_dirpath}/../input_list.txt'
     with open(input_list_filepath, 'w') as f:
         f.write(input_list_text)
 
-    # Push input_list_filepath and input data raw files to device
-    subprocess.run(
-        [ADB, "-H", RH, "-s", device_id, "push", input_list_filepath, target_device_dir], 
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
-    )
-    subprocess.run(
-        [ADB, "-H", RH, "-s", device_id, "push", tmp_dirpath, target_device_dir], 
-        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True
-    )
+    subprocess.run([ADB, "-s", device_id, "push", input_list_filepath, target_device_dir], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    subprocess.run([ADB, "-s", device_id, "push", tmp_dirpath, target_device_dir], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     
-    # Execute qnn-net-run on shell
     subprocess.run(
         [
-            ADB, "-H", RH, "-s", device_id,
-            "shell",
-            f"LD_LIBRARY_PATH={target_device_dir} "
-            f"ADSP_LIBRARY_PATH={target_device_dir} "
-            f"{target_device_dir}/qnn-net-run "
-            f"--retrieve_context {model_context} "
-            f"--backend {target_device_dir}/libQnnHtp.so "
-            f"--input_list {target_device_dir}/input_list.txt "
-            f"--output_dir {target_device_dir} "
-            f"--config_file {target_device_dir}/htp_backend_extensions.json"
+            ADB, "-s", device_id, "shell",
+            f"LD_LIBRARY_PATH={target_device_dir} ADSP_LIBRARY_PATH={target_device_dir} "
+            f"{target_device_dir}/qnn-net-run --retrieve_context {model_context} "
+            f"--backend {target_device_dir}/libQnnHtp.so --input_list {target_device_dir}/input_list.txt "
+            f"--output_dir {target_device_dir} --config_file {target_device_dir}/htp_backend_extensions.json"
         ],
         stdout=open(f"{tmp_dirpath}/log.txt", "w"),
-        stderr=subprocess.STDOUT,
-        check=True
+        stderr=subprocess.STDOUT, check=True
     )
 
-    # Pull the output file from device
-    subprocess.run(
-        [ADB, "-H", RH, "-s", device_id, "pull", f"{target_device_dir}/Result_0/vision_embedding.raw", tmp_dirpath], 
-        stdout=subprocess.DEVNULL, 
-        stderr=subprocess.DEVNULL, check=True
-    )
-    
-    # Read the output data generated by qnn-net-run
+    subprocess.run([ADB, "-s", device_id, "pull", f"{target_device_dir}/Result_0/vision_embedding.raw", tmp_dirpath], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
     output_data = np.fromfile(f'{tmp_dirpath}/vision_embedding.raw', dtype=np.float32)
-    
-    # Delete all intermediate artifacts
-    # shutil.rmtree(tmp_dirpath)
-    
     return output_data
 
 def run_veg(pixel_values, n_tokens=216, embedding_dim=1536):
     input_data_list = [pixel_values]
     output_data = run_qnn_net_run(f'{target_device_dir}/veg.serialized.bin', input_data_list)
-    # VEG output should be of shape (1, 529, 1536) 
-    # (640. 640) -> (644, 644) -> (46  46) -> 529 = 46 * 46 / 4
-    # (342, 512) -> (336, 504) -> (24, 36) -> 24 * 36 /4 =  216
     output_data = output_data.reshape((1, n_tokens, embedding_dim))
     return output_data
 
-# --- Configuration ---
+
+# --- Configuration for 2-Stage Process ---
 host_image_folder = "dataset/images"
 host_prompts_folder = "dataset/prompts"
-device_embeds_dir = f"{target_device_dir}/ImageEmbeds"
-llm_config = AutoConfig.from_pretrained(
-    llm_config_input, # CHANGE: let contestants config this model name
-    trust_remote_code=True
-) 
+host_output_dir = Path(args.host_output_dir)
+if host_output_dir.exists():
+    shutil.rmtree(host_output_dir)
+host_output_dir.mkdir(parents=True)
 
-# --- Ensure Device Directory Exists ---
-print(f"Creating directory on device: {device_embeds_dir}")
-subprocess.run(
-    f'{ADB} -H {RH} -s {device_id} shell "mkdir -p {device_embeds_dir}"', 
-    shell=True, 
-    check=True
-)
+llm_config = AutoConfig.from_pretrained(llm_config_input, trust_remote_code=True) 
 
-# --- Prepare File Lists ---
-image_files = glob.glob(os.path.join(host_image_folder, "*.png"))
-prompt_files = glob.glob(os.path.join(host_prompts_folder, "*.txt"))
-print(f"Found {len(image_files)} images and {len(prompt_files)} prompt variations.")
+# Directories for Stage 1 and Stage 2 on Device
+device_embeds_dir_s1 = f"{target_device_dir}/ImageEmbeds_S1"
+device_output_dir_s1 = "Outputs_S1" 
+device_embeds_dir_s2 = f"{target_device_dir}/ImageEmbeds_S2"
+device_output_dir_s2 = "Outputs_S2" 
 
+# Read the Stage 1 and Stage 2 fixed prompts
+with open(os.path.join(host_prompts_folder, "stage1.txt"), "r", encoding="utf-8") as f:
+    stage1_prompt_text = f.read().strip()
+with open(os.path.join(host_prompts_folder, "stage2.txt"), "r", encoding="utf-8") as f:
+    stage2_prompt_text = f.read().strip()
+
+# Create Local Temp Structure
 TMP_ROOT = Path("tmp")
-TMP_ROOT.mkdir(parents=True, exist_ok=True)
+if TMP_ROOT.exists():
+    shutil.rmtree(TMP_ROOT)
 
-# Processing Loop
+TMP_S1 = TMP_ROOT / "stage1"
+TMP_S2 = TMP_ROOT / "stage2"
+HOST_OUT_S1 = host_output_dir / "stage1"
+TMP_S1.mkdir(parents=True, exist_ok=True)
+TMP_S2.mkdir(parents=True, exist_ok=True)
+HOST_OUT_S1.mkdir(parents=True, exist_ok=True)
+# Prepare device directories
+subprocess.run(f'{ADB} -s {device_id} shell "mkdir -p {device_embeds_dir_s1} {device_embeds_dir_s2}"', shell=True, check=True)
+
+# Map all images dynamically tracking their subfolder relative paths
+image_files = glob.glob(os.path.join(host_image_folder, "**", "*.png"), recursive=True)
+print(f"Found {len(image_files)} images for the 2-stage inference.")
+
+image_tasks = []
 for img_path in image_files:
-    img_name_root = Path(img_path).stem
+    rel_path = os.path.relpath(img_path, host_image_folder)
+    safe_name = rel_path.replace('/', '_').replace('\\', '_').replace('.png', '')
+    image_tasks.append({
+        'img_path': img_path,
+        'rel_path': rel_path,
+        'safe_name': safe_name
+    })
 
-    # 1. Image Preprocessing & Vision Encoder (Done ONCE per image)
+# ==========================================
+# STAGE 1: Process Image + Stage1 Text
+# ==========================================
+print("\n--- Starting Stage 1 Prep ---")
+for task in image_tasks:
     try:
-        temp_inputs = data_preprocess(qwen2_vl_processor, img_path, inp_h_input, inp_w_input, "")
-        pixel_values = temp_inputs['pixel_values'].detach().numpy().astype(np.float32)
-
-        # print(f"Running Vision Encoder for {img_name_root}...")
+        # Preprocess Image + Stage1 prompt
+        inputs = data_preprocess(qwen2_vl_processor, task['img_path'], inp_h_input, inp_w_input, stage1_prompt_text)
+        pixel_values = inputs['pixel_values'].detach().numpy().astype(np.float32)
+        
         image_embeddings_raw = run_veg(pixel_values)
         image_embeddings_torch = torch.from_numpy(image_embeddings_raw)
 
+        token_ids = inputs['input_ids']
+        inputs_embeds = torch.from_numpy(get_embeddings(token_ids))
+
+        image_mask = ((inputs['input_ids'] == llm_config.image_token_id)
+                      .unsqueeze(-1)
+                      .expand_as(inputs_embeds))
+
+        final_embeds = inputs_embeds.masked_scatter(image_mask, image_embeddings_torch).detach().numpy()
+        
+        raw_path = TMP_S1 / f"{task['safe_name']}.raw"
+        final_embeds.tofile(raw_path)
     except Exception as e:
-        print(f"Failed to process image {img_name_root}: {e}")
-        continue
+        print(f"Failed Stage 1 prep for {task['safe_name']}: {e}")
 
-    # 2. Prompt Loop (Combine the fixed image with each unique prompt)
-    for prompt_path in prompt_files:
-        prompt_name = Path(prompt_path).stem
-        raw_filename = f"{img_name_root}_{prompt_name}.raw"
-        raw_path = TMP_ROOT / raw_filename
-
-        try:
-            with open(prompt_path, "r", encoding="utf-8") as f:
-                prompt_text = f.read()
-
-            # Preprocess text with the image
-            inputs = data_preprocess(qwen2_vl_processor, img_path, inp_h_input, inp_w_input, prompt_text)
-            token_ids = inputs['input_ids']
-
-            # Generate Text Embeddings locally
-            inputs_embeds = torch.from_numpy(get_embeddings(token_ids))
-
-            # Masking logic to insert cached image embeddings into new text embeddings
-            image_mask = ((inputs['input_ids'] == llm_config.image_token_id)
-                          .unsqueeze(-1)
-                          .expand_as(inputs_embeds))
-
-            # Combine
-            final_embeds = inputs_embeds.masked_scatter(image_mask, image_embeddings_torch).detach().numpy()
-
-            final_embeds.tofile(raw_path)
-            print(f"Generated {raw_filename}")
-
-        except Exception as e:
-            print(f"  -> Failed prompt {prompt_name} for image {img_name_root}: {e}")
-
-# --- 3. Zip everything once ---
-zip_path = TMP_ROOT / "all_image_prompt_embeddings.zip"
-print(f"\nZipping all embeddings → {zip_path.name}")
-with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_STORED) as zf:
-    for raw_file in TMP_ROOT.glob("*.raw"):
+# Zip and push S1 embeds
+zip_path_s1 = TMP_ROOT / "stage1_embeds.zip"
+with zipfile.ZipFile(zip_path_s1, "w", compression=zipfile.ZIP_STORED) as zf:
+    for raw_file in TMP_S1.glob("*.raw"):
         zf.write(raw_file, arcname=raw_file.name)
 
-# --- 4. Push zip to device ---
-print("Pushing zip to device...")
-subprocess.run(
-    f'{ADB} -H {RH} -s {device_id} push {zip_path} {device_embeds_dir}/',
-    shell=True,
-    check=True
-)
+subprocess.run(f'{ADB} -s {device_id} push {zip_path_s1} {device_embeds_dir_s1}/', shell=True, check=True)
+subprocess.run(f'{ADB} -s {device_id} shell "cd {device_embeds_dir_s1} && unzip -o {zip_path_s1.name}"', shell=True, stdout=subprocess.DEVNULL)
 
-# --- 5. Unzip on device ---
-print("Unzipping on device...")
-subprocess.run(
-    f'{ADB} -H {RH} -s {device_id} shell "cd {device_embeds_dir} && unzip -o {zip_path.name}"',
-    shell=True,
-    stdout=subprocess.DEVNULL,
-    stderr=subprocess.DEVNULL,
-    check=True
-)
-
-# --- 6. Cleanup ---
-for raw_file in TMP_ROOT.glob("*.raw"):
-    raw_file.unlink()
-zip_path.unlink()
-
-print("All embeddings processed, zipped, pushed, and unzipped on device")
-
-# --- Configuration ---
-
-# Paths
-device_output_dir = "Outputs"      # Relative to target_device_dir
-host_output_dir = "Host_Outputs"    # Local folder for results to pull into
-os.makedirs(host_output_dir, exist_ok=True)
-
-# --- 1. Define the Batch Script ---
-batch_script_content = f"""#!/bin/sh
+# Stage 1 Execution Script
+script_s1_name = "batch_run_s1.sh"
+batch_script_s1 = f"""#!/bin/sh
 cd {target_device_dir}
 export LD_LIBRARY_PATH={target_device_dir}
 export ADSP_LIBRARY_PATH={target_device_dir}
 
-# Clean and create output directories
-rm -rf {device_output_dir}
-mkdir -p {device_output_dir}
+rm -rf {device_output_dir_s1}
+mkdir -p {device_output_dir_s1}
 
-# Use a count to track if anything actually gets done
+# Initialize the shared timing_summary.txt
+echo "Timing Summary" > timing_summary.txt
+
 count=0
-
-for f in {device_embeds_dir}/*.raw; do
-    # Strict check to see if the file exists
+for f in {device_embeds_dir_s1}/*.raw; do
     [ -e "$f" ] || continue
-    
     filename=$(basename "$f")
     output_name="${{filename%.*}}.txt"
     
     echo "------------------------------------------------" >> timing_summary.txt
-    echo "$filename" >> timing_summary.txt
-    echo "Running $filename..."
+    echo "Stage 1 - $filename" >> timing_summary.txt
     
     {{ time ./genie-t2t-run \\
         -c qwen2-vl-e2t-htp.json \\
         -e "$f" \\
         -t models/qwen2-vl/2B-FT/{embed_weights_filename} \\
-        > "{device_output_dir}/$output_name"; }} 2>> timing_summary.txt
+        | tail -n +5 > "{device_output_dir_s1}/$output_name"; }} 2>> timing_summary.txt
     
     count=$((count + 1))
 done
-
-echo "\nBatch processing complete. Processed $count files."
+echo "\\nStage 1 processing complete. Processed $count files."
 """
+with open(script_s1_name, "w", newline='\n') as f:
+    f.write(batch_script_s1)
 
-script_name = "batch_run.sh"
-# Use newline='\n' to ensure Linux line endings for the script
-with open(script_name, "w", newline='\n') as f:
-    f.write(batch_script_content)
+subprocess.run(f'{ADB} -s {device_id} push {script_s1_name} {target_device_dir}/', shell=True, check=True)
+subprocess.run(f'{ADB} -s {device_id} shell "chmod +x {target_device_dir}/{script_s1_name}"', shell=True, check=True)
 
-# --- 2. Push Script & Prepare Device ---
-print("Pushing batch script to device...")
-subprocess.run(f'{ADB} -H {RH} -s {device_id} push {script_name} {target_device_dir}/', shell=True, check=True)
-subprocess.run(f'{ADB} -H {RH} -s {device_id} shell "chmod +x {target_device_dir}/{script_name}"', shell=True, check=True)
-
-# --- 3. Execute Batch Script (One ADB Call) ---
-print("\nStarting continuous batch inference on device...")
+print("Starting Stage 1 continuous batch inference on device...")
 host_start_time = time.time()
+subprocess.run(f'{ADB} -s {device_id} shell "{target_device_dir}/{script_s1_name}"', shell=True)
+print("Pulling Stage 1 inference outputs...")
+subprocess.run(
+    f'{ADB} -s {device_id} pull {target_device_dir}/{device_output_dir_s1}/. {HOST_OUT_S1}/', 
+    shell=True, 
+    check=True
+)
 
-# This command triggers the script and blocks until it finishes
-cmd = f'{ADB} -H {RH} -s {device_id} shell "{target_device_dir}/{script_name}"'
-process = subprocess.run(cmd, shell=True)
+# ==========================================
+# STAGE 2: Process Stage1 Text + Stage2 Text
+# ==========================================
+print("\n--- Starting Stage 2 Prep ---")
+for task in image_tasks:
+    s1_out_file = HOST_OUT_S1 / f"{task['safe_name']}.txt"
+    
+    if not s1_out_file.exists():
+        print(f"Skipping {task['safe_name']} - Stage 1 output not found.")
+        continue
+        
+    with open(s1_out_file, "r", encoding="utf-8") as f:
+        s1_raw_text = f.read().strip()
+
+    # Remove [BEGIN]: and [END] tags if they exist to prevent confusion
+    s1_clean_text = s1_raw_text.replace("[BEGIN]:", "").replace("[END]", "").strip()
+    
+    combined_prompt = (
+        f"*** INSTRUCTIONS ***\n{stage2_prompt_text}\n\n"
+        f"*** ANALYSIS DATA TO PROCESS ***\n{s1_clean_text}\n\n"
+    )
+    try:
+        # Use text_preprocess since Stage 2 has no images
+        inputs = text_preprocess(qwen2_vl_processor, combined_prompt)
+        token_ids = inputs['input_ids']
+        
+        # Verify tokens were generated
+        if token_ids.shape[1] == 0:
+            print(f"Error: No tokens generated for {task['safe_name']}")
+            continue
+
+        final_embeds = torch.from_numpy(get_embeddings(token_ids)).detach().numpy()
+        
+        raw_path = TMP_S2 / f"{task['safe_name']}.raw"
+        final_embeds.tofile(raw_path)
+    except Exception as e:
+        print(f"Failed Stage 2 prep for {task['safe_name']}: {e}")
+
+# Zip and push S2 embeds
+zip_path_s2 = TMP_ROOT / "stage2_embeds.zip"
+with zipfile.ZipFile(zip_path_s2, "w", compression=zipfile.ZIP_STORED) as zf:
+    for raw_file in TMP_S2.glob("*.raw"):
+        zf.write(raw_file, arcname=raw_file.name)
+
+subprocess.run(f'{ADB} -s {device_id} push {zip_path_s2} {device_embeds_dir_s2}/', shell=True, check=True)
+subprocess.run(f'{ADB} -s {device_id} shell "cd {device_embeds_dir_s2} && unzip -o {zip_path_s2.name}"', shell=True, stdout=subprocess.DEVNULL)
+
+# Stage 2 Execution Script
+script_s2_name = "batch_run_s2.sh"
+batch_script_s2 = f"""#!/bin/sh
+cd {target_device_dir}
+export LD_LIBRARY_PATH={target_device_dir}
+export ADSP_LIBRARY_PATH={target_device_dir}
+
+rm -rf {device_output_dir_s2}
+mkdir -p {device_output_dir_s2}
+
+count=0
+for f in {device_embeds_dir_s2}/*.raw; do
+    [ -e "$f" ] || continue
+    filename=$(basename "$f")
+    output_name="${{filename%.*}}.txt"
+    
+    # Append to the timing summary created in Stage 1
+    echo "------------------------------------------------" >> timing_summary.txt
+    echo "Stage 2 - $filename" >> timing_summary.txt
+    
+    {{ time ./genie-t2t-run \\
+        -c qwen2-vl-e2t-htp.json \\
+        -e "$f" \\
+        -t models/qwen2-vl/2B-FT/{embed_weights_filename} \\
+        | tail -n +5 > "{device_output_dir_s2}/$output_name"; }} 2>> timing_summary.txt
+    
+    count=$((count + 1))
+done
+echo "\\nStage 2 processing complete. Processed $count files."
+"""
+with open(script_s2_name, "w", newline='\n') as f:
+    f.write(batch_script_s2)
+
+subprocess.run(f'{ADB} -s {device_id} push {script_s2_name} {target_device_dir}/', shell=True, check=True)
+subprocess.run(f'{ADB} -s {device_id} shell "chmod +x {target_device_dir}/{script_s2_name}"', shell=True, check=True)
+
+print("Starting Stage 2 continuous batch inference on device...")
+subprocess.run(f'{ADB} -s {device_id} shell "{target_device_dir}/{script_s2_name}"', shell=True)
+
+# --- Pull Final Results and Format Host_Outputs ---
+print("\nPulling Stage 2 Final inference outputs...")
+HOST_OUT_S2 = TMP_ROOT / "Outputs_S2"
+HOST_OUT_S2.mkdir(parents=True, exist_ok=True)
+subprocess.run(f'{ADB} -s {device_id} pull {target_device_dir}/{device_output_dir_s2}/. {HOST_OUT_S2}/', shell=True, check=True)
+
+for task in image_tasks:
+    s2_out_file = HOST_OUT_S2 / f"{task['safe_name']}.txt"
+    if s2_out_file.exists():
+        final_rel_path = task['rel_path'].replace('.png', '.txt')
+        final_dest = host_output_dir / final_rel_path
+        
+        # Ensure the subfolder structure matches dataset/images/
+        final_dest.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(s2_out_file, final_dest)
+
+print("Pulling global timing summary...")
+subprocess.run(f'{ADB} -s {device_id} pull {target_device_dir}/timing_summary.txt {host_output_dir}/', shell=True, check=True)
 
 host_end_time = time.time()
-
-if process.returncode != 0:
-    print("Error occurred during batch execution. Check connection.")
-else:
-    print("Device finished execution.")
-
-# --- 4. Pull Results and Timing Logs ---
-print("\nPulling inference outputs...")
-# Pull the folder containing all output text files
-subprocess.run(f'{ADB} -H {RH} -s {device_id} pull {target_device_dir}/{device_output_dir}/. {host_output_dir}/', shell=True, check=True)
-
-print("Pulling timing summary...")
-# Pull the timing log file
-subprocess.run(f'{ADB} -H {RH} -s {device_id} pull {target_device_dir}/timing_summary.txt {host_output_dir}/', shell=True, check=True)
-
-# --- 5. Report ---
 total_duration = host_end_time - host_start_time
-print(f"\nTotal Host Wall-Clock Time: {total_duration:.2f} seconds")
-print(f"Results saved to: {host_output_dir}/")
-print(f"Timing log saved to: {host_output_dir}/timing_summary.txt")
 
-# Cleanup local script file
-if os.path.exists(script_name):
-    os.remove(script_name)
+print(f"\nTotal Host Wall-Clock Time: {total_duration:.2f} seconds")
+print(f"Results saved maintaining directory structure to: {host_output_dir}/")
+print(f"Global timing log saved to: {host_output_dir}/timing_summary.txt")
+
+# Cleanup Local Shell Scripts
+for script in [script_s1_name, script_s2_name]:
+    if os.path.exists(script):
+        os.remove(script)
+
+script_end_time = time.time()
+total_duration = script_end_time - script_start_time
+print(f"\nTotal Script Execution Time: {total_duration:.2f} seconds")
