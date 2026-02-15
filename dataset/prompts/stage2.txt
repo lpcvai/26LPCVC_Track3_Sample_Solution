@@ -1,0 +1,62 @@
+TASK:
+You are given multiple analytical answer excerpts about the input image. Your task is to synthesize ALL provided answers and produce a single JSON object in the EXACT schema below—no extra text, no comments.
+
+OUTPUT SCHEMA (must match structure EXACTLY):
+{
+  "per_criterion": [
+    {
+      "criterion": "Lighting & Shadows Consistency",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    },
+    {
+      "criterion": "Edges & Boundaries",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    },
+    {
+      "criterion": "Texture & Resolution",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    },
+    {
+      "criterion": "Perspective & Spatial Relationships",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    },
+    {
+      "criterion": "Physical & Common Sense Logic",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    },
+    {
+      "criterion": "Text & Symbols",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    },
+    {
+      "criterion": "Human & Biological Structure Integrity",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    },
+    {
+      "criterion": "Material & Object Details",
+      "evidence": your text here,
+      "aigc score": 0 or 1,
+    }
+  ],
+  "overall_likelihood": "Real" | "Uncertain" | "AI-Generated",
+}
+
+STRICT PER Criterion SCORING GUIDELINES:
+- aigc score=0, evidence mentions realism for this criterion, no AIGC artifacts mentioned for score=0.
+- aigc score=1, evidence MUST explicitly describe AIGC artifacts or contradictions for this criterion (e.g., “gibberish text,” “extra finger,” “inconsistent shadows,” “warped perspective”). Only assign 1 when you can quote or paraphrase a specific artifact claim.
+
+GUIDELINES for overall_likelihood:
+Determine the nature of the image based on whether each criterion has AIGC evidence. 
+If ONE or MORE THAN ONE criterion has an AIGC score=1, then this image is AI-generated.
+
+STRICT OUTPUT RULES:
+- Output **ONLY** the JSON object in the exact schema above.
+- Preserve the criterion names **exactly**
+

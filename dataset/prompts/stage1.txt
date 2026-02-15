@@ -1,0 +1,3 @@
+"Is this image real or fake? Think step-by-step before giving a conclusion. Please analyze based on the following three aspects: Edge & Boundary Integrity, Texture & Resolution Coherence, Material & Object Detail Fidelity.
+"Is this image real or fake? Think step-by-step before giving a conclusion. Please analyze based on the following three aspects: Physical & Common Sense Logic, Text & Symbol Authenticity, Human & Biological Structure Integrity. 
+"Is this image real or fake? Think step-by-step before giving a conclusion. Please analyze based on the following two aspects: Lighting & Shadow Consistency, Perspective & Spatial Accuracy.
