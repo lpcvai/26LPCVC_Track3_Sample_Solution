@@ -131,12 +131,41 @@ team_name.zip/
     └── tokenizer.json
 ```
 
-## 4. Running Inference
+## 4. Evaluating the quantization error (stepwize) for aihub inference
 
-If you have a Snapdragon 8 Gen 5 Android device, here are the steps to run your model on it. Place all your files within the `contestant_uploads` folder. It should not be your team_name folder or zip.
+If you don't have a Snapdragon 8 Gen 5 Android device, we provide 2 scripts that can help you evaluate the quantization error of your model. Below are the steps.
+
+### 1. Generate input and ouput on the server
+
+Copy `llm_inout.py` to `/Tutorial_for_Qwen2_VL_2b_IoT/example1/Example1B`
+```
+python llm_inout.py --save_path="./path_to_inout"
+```
+
+### 2. Submit to aihub
+Need to set submission_num accordingly
+```
+python inference_multi.py \
+  --device_model="Snapdragon 8 Elite QRD" \
+  --model_id="mm00000xx" \
+  --load_path="./path_to_input/inputs*.pt" \
+  --out_path="./output/submission_num"
+```
+### 3. Compute quantization error
+Need to set NUM_TOKEN and BATCH accordingly
+```
+python compute_score_multi_aihub.py
+```
+## 5. Running Inference
+
+If you have a Snapdragon 8 Gen 5 Android device, here are the steps to run the complete model inference on it. Place all your files directly within the `contestant_uploads` folder, or set `--uploads_dir="./path_to_files"`.
 
 Run the following command within the conda environment:
 
-`python inference_script.py`
+```
+python inference_script.py
+```
 
 Files will be pulled back into the `Host_Outputs` folder.
+
+## 
