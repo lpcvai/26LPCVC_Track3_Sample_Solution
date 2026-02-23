@@ -93,7 +93,7 @@ This file contains the parameters needed to run model inference. In the tutorial
   "data_preprocess_inp_w": 512,
   "run_veg_n_tokens": 216,
   "run_veg_embedding_dim": 1536,
-  "genie_config": { ... (redacted for length) ... }
+  "genie_config": { ... (omitted for length) ... }
 }
 ```
 ### Table of parameters 
