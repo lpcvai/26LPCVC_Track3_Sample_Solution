@@ -105,7 +105,7 @@ This file contains the parameters needed to run model inference. In the tutorial
 | data_preprocess_inp_w | Image width taken by the `data_process` function | `inputs = data_preprocess(qwen2_vl_processor, image_file, 342, 512, prompt)` |
 | run_veg_n_tokens      | Second shape of the output in the `run_veg` function | `output_data = output_data.reshape((1, 216, 1536))` |
 | run_veg_embedding_dim | Third shape of the output in the `run_veg` function | `output_data = output_data.reshape((1, 216, 1536))` |
-| genie_config          | The entirety of the json found in the code cell under "Creating Genie Config JSON". Do not worry about the paths, we will set them for you.  | `genie_config = { ...... }` |
+| genie_config          | The entirety of the json found in the code cell under "Creating Genie Config JSON". Reminder: boolean values `true` and `false` must be in lowercase. Do not worry about the paths, we will set them for you.  | `genie_config = { ...... }` |
 ---
 
 ## 3. Uploading your submission
@@ -133,7 +133,7 @@ team_name.zip/
 
 ## 4. Evaluating the quantization error (stepwize) for aihub inference
 
-If you don't have a Snapdragon 8 Gen 5 Android device, we provide 2 scripts that can help you evaluate the quantization error of your model. Below are the steps.
+If you don't have a Snapdragon 8 Gen 5 Android device, we provide 3 scripts that can help you evaluate the quantization error of your model. Below are the steps.
 
 ### 1. Generate input and ouput on the server
 
