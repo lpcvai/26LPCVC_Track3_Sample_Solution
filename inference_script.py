@@ -1,4 +1,5 @@
 # This script runs on Linux with native adb commands
+# Supports Qwen2-vl and Qwen2.5-vl based models
 import argparse
 import glob
 import json
@@ -43,7 +44,7 @@ args = parser.parse_args()
 # └── tokenizer.json
 
 execution_ws = os.getcwd()
-context_path = execution_ws + "/" + args.uploads_dir
+context_path = Path(args.uploads_dir)
 missing = []
 
 # ---- Find ar*-ar*-cl* folders ----
@@ -76,8 +77,12 @@ else:
     embed_weights_filename = os.path.basename(embed_weights_filename)
 
 # ---- Required raw files ----
+# Require one(Qwen2-vl) or more(Qwen2.5-vl) mask.raw files (matching *mask.raw) and the position id raws
+mask_files = glob.glob(os.path.join(context_path, "*mask.raw"))
+if not mask_files:
+    missing.append("*mask.raw (one or more required)")
+
 required_raws = [
-    "mask.raw",
     "position_ids_cos.raw",
     "position_ids_sin.raw"
 ]
@@ -108,7 +113,7 @@ if missing:
         print(f"  - {m}")
     raise RuntimeError("Validation failed: required contestant_uploads content missing")
 
-print("Contestant's upload files passed validation")
+print("Contestant's upload file names passed validation")
 
 inputs_json_path = os.path.join(context_path, "inputs.json")
 
@@ -457,7 +462,7 @@ for task in image_tasks:
         inputs = data_preprocess(qwen2_vl_processor, task['img_path'], inp_h_input, inp_w_input, stage1_prompt_text)
         pixel_values = inputs['pixel_values'].detach().numpy().astype(np.float32)
         
-        image_embeddings_raw = run_veg(pixel_values)
+        image_embeddings_raw = run_veg(pixel_values, run_veg_n_tokens_input, run_veg_embedding_dim_input)
         image_embeddings_torch = torch.from_numpy(image_embeddings_raw)
 
         token_ids = inputs['input_ids']
