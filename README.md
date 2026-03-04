@@ -22,17 +22,19 @@ Starting with the `README.md` in `example1`, work sequentially through the `exam
 - example2
 	- Preparation and conversion of ONNX model to Qualcomm NN 
 > **Note (Tutorial typo fix)**  
-> In `example1/README.md` of the official tutorial, there is a typo in the Docker image tag.  
+> In `example1/README.md` of the official tutorial, there is a typo in the  **aimetpro-release version tag**.  
 >  
 > **Incorrect:**
 > ```bash
 > docker pull artifacts.codelinaro.org/codelinaro-aimet/aimet-dev:1.34.torch-gpu-pt113
+> cd aimetpro-release-1.34_build-*.torch-gpu-pt113-release
 > ```
 > **Correct:**
 > ```bash
 > docker pull artifacts.codelinaro.org/codelinaro-aimet/aimet-dev:1.34.0.torch-gpu-pt113
+> cd aimetpro-release-1.34.0_build-*.torch-gpu-pt113-release
 > ```
-> Please use the corrected tag above when following `example1`.
+> Please use the corrected tags above when following `example1`.
 ## 2. Preparing files for submission
 
 Once all files have been generated, we will prepare the necessary files needed for submission.
