@@ -20,21 +20,10 @@ Starting with the `README.md` in `example1`, work sequentially through the `exam
 - example1
 	- PyTorch Model optimization and export using AIMET
 - example2
-	- Preparation and conversion of ONNX model to Qualcomm NN 
-> **Note (Tutorial typo fix)**  
-> In `example1/README.md` of the official tutorial, there is a typo in the  **aimetpro-release version tag**.  
->  
-> **Incorrect:**
-> ```bash
-> docker pull artifacts.codelinaro.org/codelinaro-aimet/aimet-dev:1.34.torch-gpu-pt113
-> cd aimetpro-release-1.34_build-*.torch-gpu-pt113-release
-> ```
-> **Correct:**
-> ```bash
-> docker pull artifacts.codelinaro.org/codelinaro-aimet/aimet-dev:1.34.0.torch-gpu-pt113
-> cd aimetpro-release-1.34.0_build-*.torch-gpu-pt113-release
-> ```
-> Please use the corrected tags above when following `example1`.
+	- Preparation and conversion of ONNX model to Qualcomm NN
+	
+Get more guidance from our [tutorial guidance section](#tutorial-guidance)
+
 ## 2. Preparing files for submission
 
 Once all files have been generated, we will prepare the necessary files needed for submission.
@@ -182,4 +171,74 @@ python inference_script.py
 
 Files will be pulled back into the `Host_Outputs` folder.
 
-## 
+---
+
+## Tutorial Guidance
+
+### 1. Tutorial Typo Fix (example1/README.md)
+
+In `example1/README.md` of the official tutorial, there is a typo in the **`aimetpro-release` version tag**.
+
+**Incorrect:**
+```bash
+docker pull artifacts.codelinaro.org/codelinaro-aimet/aimet-dev:1.34.torch-gpu-pt113
+cd aimetpro-release-1.34_build-*.torch-gpu-pt113-release
+````
+
+**Correct:**
+
+```bash
+docker pull artifacts.codelinaro.org/codelinaro-aimet/aimet-dev:1.34.0.torch-gpu-pt113
+cd aimetpro-release-1.34.0_build-*.torch-gpu-pt113-release
+```
+
+Please use the **corrected tags** above when following `example1`.
+
+---
+
+### 2. QNN Environment Setup
+
+After installing the AIMET environment, you must add the **QNN SDK path** to your environment variables.
+
+Run the following commands (replace `YOUR_QNN_LIB_PATH` with the actual path):
+
+```bash
+QNN_SDK_ROOT="YOUR_QNN_LIB_PATH"
+
+export PYTHONPATH=$QNN_SDK_ROOT/lib/python:\
+$QNN_SDK_ROOT/lib/python/qti/aisw/converters/common/linux-x86_64:$PYTHONPATH
+
+export LD_LIBRARY_PATH=$QNN_SDK_ROOT/lib:\
+$QNN_SDK_ROOT/lib/x86_64-linux-clang:$LD_LIBRARY_PATH
+
+export LD_LIBRARY_PATH=$QNN_SDK_ROOT/lib/python/qti/aisw/converters/common/linux-x86_64:\
+$LD_LIBRARY_PATH
+```
+
+---
+
+### 3. Dataset Sources (Example1A/config/veg_config.json)
+
+**Quantization calibration**
+
+* **Text:** `llava_v1_5_mix665k_300.json` (from Hugging Face)
+* **Images:** COCO 2017 dataset
+
+**PPL metric evaluation**
+
+* **Text:** `wiki103_test_long.json`
+
+Please refer to this
+[Qualcomm support link](https://mysupport.qualcomm.com/supportforums/s/question/0D5dK000009FUBuSAO/inquiry-about-wiki103testlongjson-data-format-and-conversion-for-llava15-tutorial)
+for details on the `wiki103_test_long.json` format and conversion instructions.
+
+---
+
+### 4. Dependency Installation Note (Example1A/veg.ipynb)
+
+In **Step 1 of Example 1A**, when checking and installing dependencies:
+
+* The dependencies under **“other lib”** can be safely **commented out**.
+
+
+> <img width="1228" height="529" alt="image" src="https://github.com/user-attachments/assets/80b22120-a9c9-43d8-833f-68a1acad890d" />
