@@ -138,7 +138,7 @@ team_name.zip/
 
 If you don't have a Snapdragon 8 Gen 5 Android device, we provide 3 scripts that can help you evaluate the quantization error of your model. Below are the steps.
 
-### 1. Generate input and ouput on the server
+### 1. Generate input and output on the server
 
 Copy `llm_inout.py` to `/Tutorial_for_Qwen2_VL_2b_IoT/example1/Example1B`
 ```
