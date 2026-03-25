@@ -149,7 +149,7 @@ python llm_inout.py --save_path="./path_to_inout"
 Need to set submission_num accordingly
 ```
 python inference_multi.py \
-  --device_model="Snapdragon 8 Elite QRD" \
+  --device_model="Snapdragon 8 Elite Gen 5 QRD" \
   --model_id="mm00000xx" \
   --load_path="./path_to_input/inputs*.pt" \
   --out_path="./output/submission_num"
