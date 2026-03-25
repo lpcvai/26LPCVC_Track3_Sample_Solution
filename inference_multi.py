@@ -12,7 +12,7 @@ import qai_hub as hub
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--device_model', default='Snapdragon 8 Elite QRD', help='Device model.', required=False, type=str)
+    parser.add_argument('--device_model', default='Snapdragon 8 Elite Gen 5 QRD', help='Device model.', required=False, type=str)
     parser.add_argument('--model_id', default='', help='Device model.', required=False, type=str)
     parser.add_argument('--load_path', default='./example1/Example1B/outputdir/inputs*.pt', help='Path to load input data.', required=False, type=str)
     parser.add_argument('--out_path', default='./in_mul_out/', help='Path to save output.', required=False, type=str)
