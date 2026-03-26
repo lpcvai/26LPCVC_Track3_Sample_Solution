@@ -189,7 +189,7 @@ llm_model_names = os.listdir(qwen2_models_context_path)
 llm_model_names.sort()
 llm_model_names = [f for f in llm_model_names if os.path.isfile(os.path.join(qwen2_models_context_path, f))]
 
-veg_models_context_path = os.path.join(context_path + "/serialized_binaries")
+veg_models_context_path = os.path.join(context_path , "serialized_binaries")
 
 for model_bin in os.listdir(veg_models_context_path):
     src_file = os.path.join(veg_models_context_path, model_bin)
@@ -216,7 +216,7 @@ shutil.copy(QNN_binary, des_dir)
 shutil.copy(GENIE_binary, des_dir)
 shutil.copy(QNN_skel, des_dir)
 
-qwen2_vl_tokenizer_path = context_path + "/tokenizer.json"
+qwen2_vl_tokenizer_path = os.path.join(context_path, "tokenizer.json")
 shutil.copy(qwen2_vl_tokenizer_path, des_dir_qwen2_models)
 
 qwen2_data_folder_rel_path = os.path.relpath(des_dir_qwen2_model_2B_data, des_dir)
@@ -362,18 +362,27 @@ def run_qnn_net_run(model_context, input_data_list):
         input_data.tofile(raw_file_path)
         input_list_text += target_device_dir + '/inputs/' + os.path.basename(raw_file_path) + ' '
 
-    cos_data  = os.path.join(context_path, "position_ids_cos.raw")
-    sin_data  = os.path.join(context_path, "position_ids_sin.raw")
-    mask_data = os.path.join(context_path, "mask.raw")
+    cos_data = os.path.join(context_path, "position_ids_cos.raw")
+    sin_data = os.path.join(context_path, "position_ids_sin.raw")
+
     shutil.copy(cos_data, tmp_dirpath)
     shutil.copy(sin_data, tmp_dirpath)
-    shutil.copy(mask_data, tmp_dirpath)
-    input_list_text += target_device_dir + '/inputs/position_ids_cos.raw' + ' '
-    input_list_text += target_device_dir + '/inputs/position_ids_sin.raw' + ' '
-    input_list_text += target_device_dir + '/inputs/mask.raw' + ' '
 
-    input_list_filepath = f'{tmp_dirpath}/../input_list.txt'
-    with open(input_list_filepath, 'w') as f:
+    input_list_text += os.path.join(target_device_dir, "inputs", "position_ids_cos.raw") + " "
+    input_list_text += os.path.join(target_device_dir, "inputs", "position_ids_sin.raw") + " "
+
+    # Handle any *mask.raw files
+    mask_pattern = os.path.join(context_path, "*mask.raw")
+    mask_files = glob.glob(mask_pattern)
+
+    for mask_file in mask_files:
+        shutil.copy(mask_file, tmp_dirpath)
+        mask_filename = os.path.basename(mask_file)
+        input_list_text += os.path.join(target_device_dir, "inputs", mask_filename) + " "
+
+    # Write input_list.txt
+    input_list_filepath = os.path.join(tmp_dirpath, "..", "input_list.txt")
+    with open(input_list_filepath, "w") as f:
         f.write(input_list_text)
 
     subprocess.run([ADB, "-s", device_id, "push", input_list_filepath, target_device_dir], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
