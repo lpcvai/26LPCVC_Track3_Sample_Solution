@@ -256,6 +256,12 @@ In **Step 1 of Example 1A**, when checking and installing dependencies:
 
 ---
 
+## Acknowledgements
+
+This material is based upon work supported by the National Science Foundation under Grant Number 2504445. Any opinions, findings, and conclusions or recommendations expressed in this material are those of the author(s) and do not necessarily reflect the views of the National Science Foundation.
+
+---
+
 ## Citation
 
 If you use this sample solution or refer to the IEEE Low-Power Computer Vision Challenge, please cite the challenge as follows:
